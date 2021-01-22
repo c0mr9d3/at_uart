@@ -54,29 +54,30 @@ def open_serial():
         raise SystemExit
     return ser
 
-def main():
+def main(comport=None):
     global COMPORT
 
-    print("Exists comports:")
-    for j, i in enumerate(list_ports.comports()):
-        print("\t[%d] - %s" % (j, list_ports.comports()[j].device), sep='')
+    if not comport:
+        print("Exists comports:")
+        for j, i in enumerate(list_ports.comports()):
+            print("\t[%d] - %s" % (j, list_ports.comports()[j].device))
 
-    print("On default use port: %s" % COMPORT)
-    print("Choose comport or any button except numbers for continue: ", end='')
-    c = input()
+        print("Choose comport or any button except numbers for continue: ", end='')
+        c = input()
 
-    try:
-        c = int(c)
-    except ValueError:
-        pass
-
-    if type(c) == int:
         try:
-            COMPORT = list_ports.comports()[int(c)].device
-        except (ValueError, IndexError):
-            print("Incorrect number")
-            raise SystemExit
+            c = int(c)
+        except ValueError:
+            pass
 
+        if type(c) == int:
+            try:
+                COMPORT = list_ports.comports()[c].device
+            except (ValueError, IndexError):
+                print("Incorrect number")
+                raise SystemExit
+
+    print("Used port: %s" % COMPORT)
     ser = open_serial()
     t = threading.Thread(target=read_ser, args=(ser,))
     t.start()
@@ -153,11 +154,16 @@ def options_parser():
     parser.add_option('-b', '--baudrate', help='set speed for comport. On default is equal 9600', metavar='BAUDRATE')
     parser.add_option('-a', '--add', help='add alias on command. Use with option --command', metavar='alias')
     parser.add_option('-c', '--command', help='used for set alias on command', metavar='COMMAND')
+    parser.add_option('-p', '--port', help='set comport', metavar='PORT')
     (options, args) = parser.parse_args()
 
     if options.baudrate:
         global BAUDRATE
         BAUDRATE = options.baudrate
+
+    if options.port:
+        global COMPORT
+        COMPORT = options.port
 
     if options.add or options.command:
         if options.add and options.command:
@@ -171,7 +177,10 @@ def options_parser():
     elif options.execute:
         run_once(options.execute)
     else:
-        main()
+        if options.port:
+            main(comport=options.port)
+        else:
+            main()
 
 if __name__ == '__main__':
     options_parser()
