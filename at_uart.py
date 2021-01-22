@@ -9,34 +9,32 @@ else:
     COMPORT = '/dev/ttyS0'
 BAUDRATE = 9600
 
-def print_help():
-    s = '''    
+help_string = '''    
 For append alias on command enter: alias <NAME> <COMMAND>.
 For delete alias enter: delete <NAME>
 For display all aliases enter SHOW_ALL_ALIASES, for exit enter QUIT.
 '''
-    print(s)
 
 def read_ser(ser, once=False, mutex=None):
     msg = b''
-    c = 0
-
-    if mutex:
-        mutex.release()
 
     while True:
         try:
             msg += ser.read()
-            if msg.endswith(b'\n'):
+            if msg.endswith(b'\r\n'):
                 msg.strip()
                 try:
                     print(msg.decode(), end='')
                 except UnicodeError:
                     print(msg)
-                if once == True:
-                    if c == 1:
-                        raise SystemExit
-                    c += 1
+
+                if b'NO CARRIER' in msg or b'OK' in msg:
+                    if mutex:
+                        mutex.release()
+
+                    if once == True:
+                        raise KeyboardInterrupt
+
                 msg = b''
 
         except serial.serialutil.SerialException as e:
@@ -79,7 +77,9 @@ def main(comport=None):
 
     print("Used port: %s\nBaudrate: %d" % (COMPORT, BAUDRATE))
     ser = open_serial()
-    t = threading.Thread(target=read_ser, args=(ser,))
+    mutex = threading.Lock()
+    mutex.acquire()
+    t = threading.Thread(target=read_ser, args=(ser, False, mutex))
     t.start()
     send_data = ''
     db_commands = shelve.open("commands")
@@ -99,7 +99,7 @@ def main(comport=None):
             elif send_data.upper() == 'QUIT':
                 raise KeyboardInterrupt
             elif send_data.upper() == 'HELP':
-                print_help()
+                print(help_string)
                 continue
             elif 'delete' in send_data:
                 send_data = send_data.split()
@@ -117,9 +117,13 @@ def main(comport=None):
                 continue
 
             if db_commands.get(send_data):
-                ser.write(db_commands.get(send_data).encode() + b'\n')
+                ser.write(db_commands.get(send_data).encode() + b'\r\n')
             else:
-                ser.write(send_data.encode() + b'\n')
+                ser.write(send_data.encode() + b'\r\n')
+
+            while mutex.locked():
+                pass
+            mutex.acquire()
 
         except KeyboardInterrupt:
             ser.flush()
@@ -136,17 +140,18 @@ def run_once(command):
     mutex.acquire()
     t = threading.Thread(target=read_ser, args=(ser, True, mutex))
     t.start()
-    while mutex.locked():
-        pass
 
     if send_command:
         ser.write(send_command.encode() + b'\r\n')
     else:
         ser.write(command.encode() + b'\r\n')
 
+    while mutex.locked():
+        pass
+
     db_commands.close()
     time.sleep(1)
-    ctypes.pythonapi.PyThreadState_SetAsyncExc(t.ident, ctypes.py_object(SystemExit))
+    ctypes.pythonapi.PyThreadState_SetAsyncExc(t.ident, ctypes.py_object(KeyboardInterrupt))
 
 def options_parser():
     parser = OptionParser()
