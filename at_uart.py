@@ -77,7 +77,7 @@ def main(comport=None):
                 print("Incorrect number")
                 raise SystemExit
 
-    print("Used port: %s" % COMPORT)
+    print("Used port: %s\nBaudrate: %d" % (COMPORT, BAUDRATE))
     ser = open_serial()
     t = threading.Thread(target=read_ser, args=(ser,))
     t.start()
@@ -159,7 +159,7 @@ def options_parser():
 
     if options.baudrate:
         global BAUDRATE
-        BAUDRATE = options.baudrate
+        BAUDRATE = int(options.baudrate)
 
     if options.port:
         global COMPORT
