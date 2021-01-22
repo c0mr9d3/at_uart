@@ -1,9 +1,12 @@
 #!/usr/bin/env python3
-import serial, threading, time, ctypes, sys, shelve
+import serial, threading, time, ctypes, sys, shelve, platform
 from optparse import OptionParser
 from serial.tools import list_ports
 
-COMPORT = '/dev/ttyS0'
+if platform.system() == 'Windows':
+    COMPORT = 'COM1'
+else:
+    COMPORT = '/dev/ttyS0'
 BAUDRATE = 9600
 
 def print_help():
@@ -46,8 +49,8 @@ def read_ser(ser, once=False, mutex=None):
 def open_serial():
     try:
         ser = serial.Serial(COMPORT, baudrate=BAUDRATE, timeout=1)
-    except (serial.serialutil.SerialException, FileNotFoundError):
-        print("Can't open %s" % COMPORT)
+    except (serial.serialutil.SerialException, FileNotFoundError) as e:
+        print("Can't open %s: %s" % (COMPORT, sys.exc_info()[1]))
         raise SystemExit
     return ser
 
