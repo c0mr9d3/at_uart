@@ -1,6 +1,7 @@
 # at_uart
 Send commands on UART to AT device on serial port
 <br/><br/>
+File commands.db contain aliases on AT commands.<br/>
 Usage: at_uart.py [options]<br/><br/>
 
 Options:<br/>
