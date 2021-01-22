@@ -6,9 +6,18 @@ from serial.tools import list_ports
 COMPORT = '/dev/ttyS0'
 BAUDRATE = 9600
 
+def print_help():
+    s = '''    
+For append alias on command enter: alias <NAME> <COMMAND>.
+For delete alias enter: delete <NAME>
+For display all aliases enter SHOW_ALL_ALIASES, for exit enter QUIT.
+'''
+    print(s)
+
 def read_ser(ser, once=False, mutex=None):
     msg = b''
     c = 0
+
     if mutex:
         mutex.release()
 
@@ -73,7 +82,36 @@ def main():
     print("Start!")
     while True:
         try:
+            print(
+'''\nEnter AT command or alias on AT command. For help enter HELP.\n
+\033[01;32minput>\033[0m ''', end='')
             send_data = input()
+
+            if send_data.upper() == 'SHOW_ALL_ALIASES':
+                print('\n\033[01;31mAvailable aliases on commands:\033[0m')
+                for i, j in db_commands.items():
+                    print("\t\033[01;34m%s\033[0m - \033[01;33m%s\033[0m" % (i, j))
+                continue
+            elif send_data.upper() == 'QUIT':
+                raise KeyboardInterrupt
+            elif send_data.upper() == 'HELP':
+                print_help()
+                continue
+            elif 'delete' in send_data:
+                send_data = send_data.split()
+                try:
+                    db_commands.pop(send_data[1])
+                except IndexError:
+                    print("Wrong input. Enter: delete <NAME>")
+                continue
+            elif 'alias' in send_data:
+                send_data = send_data.split()
+                try:
+                    db_commands[send_data[1]] = send_data[2]
+                except IndexError:
+                    print("Wrong input. Enter: alias <NAME> <COMMAND>")
+                continue
+
             if db_commands.get(send_data):
                 ser.write(db_commands.get(send_data).encode() + b'\n')
             else:
@@ -105,7 +143,6 @@ def run_once(command):
     db_commands.close()
     time.sleep(1)
     ctypes.pythonapi.PyThreadState_SetAsyncExc(t.ident, ctypes.py_object(SystemExit))
-
 
 def options_parser():
     parser = OptionParser()
